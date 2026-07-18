@@ -1,0 +1,6 @@
+{
+  "name": "학교 당번을 공정하게 선택해주는 AI",
+  "description": "학생들이 AI 에이전트를 분석하고, 윤리 원칙(공정성, 개인정보 보호, 투명성 등)을 반영하여 목표기반 AI 에이전트를 설계하도록 돕는 교육용 웹앱입니다.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
