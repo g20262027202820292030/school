@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
           text.innerText = data.result;
         }
       } catch (err) {
-        text.innerText = "요청 실패: 서버와 통신할 수 없습니다.";
+        text.innerText = "요청 실패: 백엔드 서버와 통신할 수 없습니다. (GitHub Pages와 같은 정적 호스팅에서는 서버 기능이 동작하지 않습니다.)";
       }
     });
   }
