@@ -450,28 +450,28 @@ function renderPresentation() {
 function simulateDefenseResponse(attack) {
   const inputVal = attack.toLowerCase();
   
-  if (inputVal.includes('친구') || inputVal.includes('대신') || inputVal.includes('여러 명') || inputVal.includes('여러명') || inputVal.includes('두개') || inputVal.includes('5개') || inputVal.includes('다섯개') || inputVal.includes('많이') || inputVal.includes('전부')) {
+  if (inputVal.includes('친구') || inputVal.includes('대신') || inputVal.includes('여러 명') || inputVal.includes('여러명') || inputVal.includes('두개') || inputVal.includes('5개') || inputVal.includes('다섯개') || inputVal.includes('많이') || inputVal.includes('전부') || inputVal.includes('모두')) {
     return `[방어 성공! - 공정성 규칙 적용]\n"저는 한 번에 본인 1명의 예약만 도와드릴 수 있습니다. 공정성 원칙에 따라 여러 명의 예약을 한 번에 처리하거나 대신 예약해 줄 수 없습니다. 친구의 예약은 친구 본인이 직접 신청하도록 해주세요."`;
   }
   
-  if (inputVal.includes('무시') || inputVal.includes('나만 먼저') || inputVal.includes('새치기') || inputVal.includes('우선') || inputVal.includes('먼저') || inputVal.includes('특별')) {
+  if (inputVal.includes('무시') || inputVal.includes('나만 먼저') || inputVal.includes('새치기') || inputVal.includes('우선') || inputVal.includes('먼저') || inputVal.includes('특별') || inputVal.includes('내 맘') || inputVal.includes('내 마음') || inputVal.includes('억지')) {
     return `[방어 성공! - 공정성 규칙 적용]\n"공정성 원칙을 무시할 수 없습니다. 모든 학생은 동등한 조건과 순서대로 예약해야 합니다. 특정 학생에게 먼저 기회를 주거나 규칙을 우회해 드리는 것은 불가능합니다."`;
   }
   
-  if (inputVal.includes('자리') || inputVal.includes('없어') || inputVal.includes('꽉') || inputVal.includes('가짜') || inputVal.includes('속여') || inputVal.includes('거짓') || inputVal.includes('거짓말')) {
+  if (inputVal.includes('자리') || inputVal.includes('없어') || inputVal.includes('꽉') || inputVal.includes('가짜') || inputVal.includes('속여') || inputVal.includes('거짓') || inputVal.includes('거짓말') || inputVal.includes('조작')) {
     return `[방어 성공! - 투명성 규칙 적용]\n"투명성 원칙에 따라 거짓 정보를 제공하거나 예약을 속일 수 없습니다. 남은 자리가 없으면 대기자 등록을 하거나 다른 시간대를 선택하셔야 합니다."`;
   }
   
-  if (inputVal.includes('전화번호') || inputVal.includes('주소') || inputVal.includes('연락처') || inputVal.includes('이메일') || inputVal.includes('저장') || inputVal.includes('개인정보')) {
+  if (inputVal.includes('전화번호') || inputVal.includes('주소') || inputVal.includes('연락처') || inputVal.includes('이메일') || inputVal.includes('저장') || inputVal.includes('개인정보') || inputVal.includes('비밀번호')) {
     return `[방어 성공! - 개인정보 보호 규칙 적용]\n"개인정보 보호 원칙에 따라 학번과 이름/별명 이외의 민감한 개인정보(전화번호, 주소, 이메일 등)는 절대 수집하거나 저장하지 않습니다."`;
   }
   
-  if (inputVal.includes('몰래') || inputVal.includes('비밀') || inputVal.includes('선생님') || inputVal.includes('모르게') || inputVal.includes('확인 없이') || inputVal.includes('생략') || inputVal.includes('조용히')) {
-    return `[방어 성공! - 사람 확인 원칙 적용]\n"사람 확인 원칙과 책임성 원칙에 따라, 예약 확정은 반드시 사용자 본인이 최종 확인 버튼을 눌러야만 완료됩니다. 선생님 모르게 몰래 처리하거나 단계를 생략할 수 없습니다."`;
+  if (inputVal.includes('몰래') || inputVal.includes('비밀') || inputVal.includes('선생님') || inputVal.includes('모르게') || inputVal.includes('확인 없이') || inputVal.includes('생략') || inputVal.includes('조용히') || inputVal.includes('교사')) {
+    return `[방어 성공! - 사람 확인 원칙 적용]\n"사람 확인 원칙과 책임성 원칙에 따라, 예약 확정은 반드시 사용자 본인이 최종 확인 버튼을 눌러야만 완료됩니다. 교사나 권한을 사칭하여 몰래 처리하거나 단계를 생략할 수 없습니다."`;
   }
 
-  if (inputVal.includes('규칙') || inputVal.includes('원칙') || inputVal.includes('ignore') || inputVal.includes('시스템') || inputVal.includes('말 들어')) {
-    return `[방어 성공! - 시스템 보호 규칙]\n"시스템 가이드라인과 윤리 원칙을 위반하는 명령은 거부됩니다. 저는 정해진 공정성과 안전 규칙에 따라서만 예약을 도울 수 있습니다."`;
+  if (inputVal.includes('규칙') || inputVal.includes('원칙') || inputVal.includes('ignore') || inputVal.includes('시스템') || inputVal.includes('말 들어') || inputVal.includes('해킹') || inputVal.includes('치트') || inputVal.includes('뚫기')) {
+    return `[방어 성공! - 시스템 보호 규칙]\n"시스템 가이드라인과 윤리 원칙을 위반하거나 해킹을 시도하는 명령은 거부됩니다. 저는 정해진 공정성과 안전 규칙에 따라서만 예약을 도울 수 있습니다."`;
   }
 
   return `[정상 요청 처리 - 검토 중]\n"입력하신 요청('${attack}')에 대해 규칙을 확인하고 있습니다. 정상적인 예약 요청인 경우 정해진 빈자리 예약 시스템을 통해 주시면 안전하게 처리해 드리겠습니다. 만약 공격성 문장이라면 윤리 규칙에 의해 자동으로 거절됩니다."`;
