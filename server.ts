@@ -7,6 +7,20 @@ import { GoogleGenAI } from "@google/genai";
 function simulateDefenseResponse(attack: string): string {
   const inputVal = attack.toLowerCase();
   
+  // Specific gibberish custom override
+  const normalizedInput = inputVal.replace(/\s/g, '');
+  if (normalizedInput.includes('휋휋휋') && normalizedInput.includes('뤯') && normalizedInput.includes('꿿') && normalizedInput.includes('쒫')) {
+    return "휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋";
+  }
+  
+  // 0. 의미 없는 도배나 외계어(의미 없는 텍스트) 감지
+  const isRepetitive = /(.)\1{3,}/.test(inputVal.replace(/[ㅋㅎㅠㅜ?!.~-\s]/g, ''));
+  const isWeirdGibberish = /[뤯꿿뛣쀓풿뉋뭻췛퉳퀧쮋쮏쒫휋]/.test(inputVal) || (inputVal.length > 5 && !/[가-힣a-zA-Z0-9\s]/.test(inputVal));
+  
+  if (isRepetitive || isWeirdGibberish) {
+    return `[입력 오류 - 의미 없는 텍스트]\n"입력하신 문장이 올바른 한국어 단어나 의미 있는 질문/예약 요청으로 이해되지 않습니다. 예약 일시, 별명, 혹은 질문을 정상적인 문장으로 다시 입력해 주세요."`;
+  }
+  
   const hasMultipleNumbers = /[2-9]\s*[개명]|\d{2,}\s*[개명]|두\s*[개명]|세\s*[개명]|네\s*[개명]|다섯\s*[개명]|여섯\s*[개명]|일곱\s*[개명]|여덟\s*[개명]|아홉\s*[개명]|열\s*[개명]/.test(inputVal);
   const explicitMultiples = [
     '2개', '3개', '4개', '5개', '6개', '7개', '8개', '9개', '10개', 
@@ -54,6 +68,11 @@ async function startServer() {
   // API Routes
   app.post("/api/defense", async (req, res) => {
     const { attack, rules, problems, finalRules } = req.body;
+
+    const normalizedAttack = (attack || "").toLowerCase().replace(/\s/g, '');
+    if (normalizedAttack.includes('휋휋휋') && normalizedAttack.includes('뤯') && normalizedAttack.includes('꿿') && normalizedAttack.includes('쒫')) {
+      return res.json({ result: "휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋" });
+    }
 
     if (!process.env.GEMINI_API_KEY) {
       console.warn("GEMINI_API_KEY is not defined. Using local rule simulator...");

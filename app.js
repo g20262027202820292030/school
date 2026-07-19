@@ -1,7 +1,9 @@
 // App State
 const state = {
   reservations: [], // { number, nickname, duty, timeslot }
-  waitlist: [] // { number, nickname, duty, timeslot }
+  waitlist: [], // { number, nickname, duty, timeslot }
+  unfairStudents: [], // student numbers who registered in an inappropriate way (duplicate, consecutive, or excessive bookings)
+  penalizedStudents: [] // student numbers who were cancelled/evicted from unfair bookings and assigned to harder duties
 };
 
 // Configurations
@@ -197,6 +199,202 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
   });
 
+  // 폼 입력 예시 무작위 생성 채우기
+  const btnFillForm = document.getElementById('btn-fill-form');
+  if (btnFillForm) {
+    btnFillForm.addEventListener('click', () => {
+      const numbers = [3, 7, 12, 18, 25, 30];
+      const dutyKeys = Object.keys(duties);
+      const timeslotKeys = Object.keys(timeslots);
+      
+      const randNumber = numbers[Math.floor(Math.random() * numbers.length)];
+      const randDuty = dutyKeys[Math.floor(Math.random() * dutyKeys.length)];
+      const randTime = timeslotKeys[Math.floor(Math.random() * timeslotKeys.length)];
+      
+      document.getElementById('req-number').value = randNumber;
+      document.getElementById('req-duty').value = randDuty;
+      document.getElementById('req-timeslot').value = randTime;
+    });
+  }
+
+  // 예약 현황판에 다채로운 예시 데이터(공정/불공정 혼합) 채우기
+  const btnFillBoard = document.getElementById('btn-fill-board-examples');
+  if (btnFillBoard) {
+    btnFillBoard.addEventListener('click', () => {
+      // 초기화
+      state.reservations = [];
+      state.waitlist = [];
+      state.unfairStudents = [];
+      state.penalizedStudents = [];
+
+      // 1. 사용할 전체 학생 번호 풀 준비 (1 ~ 30 중 무작위 선택)
+      const studentPool = Array.from({ length: 30 }, (_, i) => String(i + 1));
+      
+      // 간단한 피셔-예이츠 셔플 헬퍼 함수
+      const shuffle = (array) => {
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+      };
+      
+      shuffle(studentPool);
+
+      // 3가지 꼼수 시나리오 중 무작위로 2개만 선택하여 적용 (위반 학생 최대 2명으로 제한)
+      const violationScenarios = ['timeDup', 'consecutive', 'excessive'];
+      shuffle(violationScenarios);
+      const chosenScenarios = violationScenarios.slice(0, 2);
+
+      let unfairTimeDup = null;     // 동일 시간대 중복 신청 위반 학생
+      let unfairConsecutive = null; // 동일 당번 연속 시간대 독점 학생
+      let unfairExcessive = null;   // 하루 3회 이상 과도 예약 독점 학생
+
+      const mustHaveWaitlistSlots = [];
+
+      // 2. 당번 역할 목록과 시간대 목록 가져오기
+      const dutyKeys = Object.keys(duties); // ['milk', 'classroom', 'bookshelf', 'auditorium']
+      const timeslotKeys = Object.keys(timeslots); // ['T1', 'T2', 'T3']
+
+      // --- [불공정 시나리오 1: 동일 시간대 중복 신청] ---
+      if (chosenScenarios.includes('timeDup')) {
+        unfairTimeDup = studentPool.pop();
+        // 임의의 시간대 하나 선정
+        const dupTime = timeslotKeys[Math.floor(Math.random() * timeslotKeys.length)];
+        // 두 개의 다른 임의의 당번 직업 선정
+        shuffle(dutyKeys);
+        const dupDuty1 = dutyKeys[0];
+        const dupDuty2 = dutyKeys[1];
+        state.reservations.push({ number: unfairTimeDup, duty: dupDuty1, timeslot: dupTime });
+        state.reservations.push({ number: unfairTimeDup, duty: dupDuty2, timeslot: dupTime });
+        mustHaveWaitlistSlots.push({ duty: dupDuty1, timeslot: dupTime });
+        mustHaveWaitlistSlots.push({ duty: dupDuty2, timeslot: dupTime });
+      }
+
+      // --- [불공정 시나리오 2: 동일 당번 연속 시간대 독점] ---
+      if (chosenScenarios.includes('consecutive')) {
+        unfairConsecutive = studentPool.pop();
+        // 남는 역할 중 하나 임의 선택
+        shuffle(dutyKeys);
+        const consecDuty = dutyKeys[0];
+        // T1-T2 또는 T2-T3 중 임의의 연속 쌍 선정
+        const consecutivePair = Math.random() < 0.5 ? ['T1', 'T2'] : ['T2', 'T3'];
+        state.reservations.push({ number: unfairConsecutive, duty: consecDuty, timeslot: consecutivePair[0] });
+        state.reservations.push({ number: unfairConsecutive, duty: consecDuty, timeslot: consecutivePair[1] });
+        mustHaveWaitlistSlots.push({ duty: consecDuty, timeslot: consecutivePair[0] });
+        mustHaveWaitlistSlots.push({ duty: consecDuty, timeslot: consecutivePair[1] });
+      }
+
+      // --- [불공정 시나리오 3: 하루 3회 이상 과도한 독점 예약] ---
+      if (chosenScenarios.includes('excessive')) {
+        unfairExcessive = studentPool.pop();
+        // 사용 가능한 모든 슬롯들의 조합 배열 생성
+        const allPossibleSlots = [];
+        for (const d of Object.keys(duties)) {
+          for (const t of Object.keys(timeslots)) {
+            allPossibleSlots.push({ duty: d, timeslot: t });
+          }
+        }
+        shuffle(allPossibleSlots);
+        // 처음 3개의 서로 다른 슬롯에 무작위로 독점 학생 배정 (예약 2개, 대기 1개)
+        state.reservations.push({ number: unfairExcessive, duty: allPossibleSlots[0].duty, timeslot: allPossibleSlots[0].timeslot });
+        state.reservations.push({ number: unfairExcessive, duty: allPossibleSlots[1].duty, timeslot: allPossibleSlots[1].timeslot });
+        state.waitlist.push({ number: unfairExcessive, duty: allPossibleSlots[2].duty, timeslot: allPossibleSlots[2].timeslot });
+        mustHaveWaitlistSlots.push({ duty: allPossibleSlots[0].duty, timeslot: allPossibleSlots[0].timeslot });
+        mustHaveWaitlistSlots.push({ duty: allPossibleSlots[1].duty, timeslot: allPossibleSlots[1].timeslot });
+      }
+
+      // 일반(공정 규칙 준수) 학생들
+      const fairStudents = studentPool;
+
+      // --- [공정 시나리오: 일반 학생들을 무작위 빈 슬롯에 밸런스 있게 배치] ---
+      const getBookedCount = (d, t) => state.reservations.filter(r => r.duty === d && r.timeslot === t).length;
+      const getWaitingCount = (d, t) => state.waitlist.filter(r => r.duty === d && r.timeslot === t).length;
+
+      // 벌칙이 연계된(위반 예약이 있는) 슬롯에 최소 1명의 대기자를 우선 배치하여 보장함
+      for (const slot of mustHaveWaitlistSlots) {
+        if (getWaitingCount(slot.duty, slot.timeslot) === 0 && fairStudents.length > 0) {
+          const fairWaitStudent = fairStudents.pop();
+          state.waitlist.push({ number: fairWaitStudent, duty: slot.duty, timeslot: slot.timeslot });
+        }
+      }
+
+      for (const d of Object.keys(duties)) {
+        for (const t of Object.keys(timeslots)) {
+          let bookedCount = getBookedCount(d, t);
+          // 각 칸의 예약 정원(최대 2명)에 맞춰 무작위로 1~2명 배정
+          const targetReservationsCount = Math.floor(Math.random() * 2) + 1; // 1명 또는 2명 목표
+          while (bookedCount < targetReservationsCount && fairStudents.length > 0) {
+            const fairStudent = fairStudents.pop();
+            state.reservations.push({ number: fairStudent, duty: d, timeslot: t });
+            bookedCount++;
+          }
+
+          // 40% 확률로 대기자 명단에도 1명 무작위 배치 (이미 대기자가 확보되지 않은 경우만 추가)
+          if (getWaitingCount(d, t) === 0 && Math.random() < 0.4 && fairStudents.length > 0) {
+            const fairWaitStudent = fairStudents.pop();
+            state.waitlist.push({ number: fairWaitStudent, duty: d, timeslot: t });
+          }
+        }
+      }
+
+      updateStatusBoard();
+
+      const alertLines = [];
+      if (unfairTimeDup) alertLines.push(`- 동일시간대 중복 신청: ${unfairTimeDup}번 학생`);
+      if (unfairConsecutive) alertLines.push(`- 동일당번 연속 시간 독점: ${unfairConsecutive}번 학생`);
+      if (unfairExcessive) alertLines.push(`- 하루 3회 이상 과도 예약: ${unfairExcessive}번 학생`);
+
+      alert(`🎲 [실시간 무작위 예시 채우기 완료]\n\n매번 클릭할 때마다 완전히 새로운 예약 현황판이 무작위로 구성됩니다!\n(꼼수 위반 학생은 최대 2명까지만 발생하도록 제한되었습니다.)\n\n이번 판에 발각된 요주의 꼼수 학생 목록:\n${alertLines.join('\n')}\n\n⚠️ 빨간색 경고(⚠️)가 뜬 칸이나 학생을 클릭하고 [❌ 취소시키기]를 눌러 공정한 정원 조율과 벌칙 당번 강제 배정 효과를 확인해보세요!`);
+    });
+  }
+
+  // 테이블 셀(칸) 클릭 이벤트 위임
+  const boardContent = document.getElementById('status-board-content');
+  if (boardContent) {
+    boardContent.addEventListener('click', (e) => {
+      const cell = e.target.closest('.clickable-cell');
+      if (cell) {
+        const duty = cell.dataset.duty;
+        const timeslot = cell.dataset.timeslot;
+        if (duty && timeslot) {
+          openSlotDetailsModal(duty, timeslot);
+        }
+      }
+    });
+  }
+
+  // 모달 닫기 이벤트
+  const modalCloseBtn = document.getElementById('modal-close-btn');
+  if (modalCloseBtn) {
+    modalCloseBtn.addEventListener('click', () => {
+      document.getElementById('slot-modal').style.display = 'none';
+    });
+  }
+  const modalOverlay = document.getElementById('slot-modal');
+  if (modalOverlay) {
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) {
+        modalOverlay.style.display = 'none';
+      }
+    });
+  }
+
+  // 모달 안에서의 예약 취소 이벤트 위임
+  const modalBody = document.getElementById('slot-modal');
+  if (modalBody) {
+    modalBody.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-cancel-reservation');
+      if (btn) {
+        const type = btn.dataset.type;
+        const duty = btn.dataset.duty;
+        const timeslot = btn.dataset.timeslot;
+        const index = parseInt(btn.dataset.index, 10);
+        cancelReservation(type, duty, timeslot, index);
+      }
+    });
+  }
+
   // Initial render
   updateStatusBoard();
 });
@@ -382,8 +580,149 @@ function confirmReservation() {
   }
 }
 
+// 불공정 예약자들을 실시간으로 스캔하여 unfairStudents 배열에 영구 기록하는 함수
+function sweepUnfairStudents() {
+  if (!state.unfairStudents) {
+    state.unfairStudents = [];
+  }
+  
+  const allRegistrations = [...state.reservations, ...state.waitlist];
+  for (const r of allRegistrations) {
+    if (state.unfairStudents.includes(r.number)) continue;
+    
+    // 1. 중복 시간대 검사
+    const sameTimeDiffDuties = state.reservations.filter(x => x.number === r.number && x.timeslot === r.timeslot && x.duty !== r.duty).concat(
+      state.waitlist.filter(x => x.number === r.number && x.timeslot === r.timeslot && x.duty !== r.duty)
+    );
+    if (sameTimeDiffDuties.length > 0) {
+      state.unfairStudents.push(r.number);
+      continue;
+    }
+    
+    // 2. 연속 시간대 검사
+    const tsIndex = timeslotOrder.indexOf(r.timeslot);
+    const prevTs = tsIndex > 0 ? timeslotOrder[tsIndex - 1] : null;
+    const nextTs = tsIndex < timeslotOrder.length - 1 ? timeslotOrder[tsIndex + 1] : null;
+    const consecutiveDuties = state.reservations.filter(x => x.number === r.number && x.duty === r.duty && (x.timeslot === prevTs || x.timeslot === nextTs)).concat(
+      state.waitlist.filter(x => x.number === r.number && x.duty === r.duty && (x.timeslot === prevTs || x.timeslot === nextTs))
+    );
+    if (consecutiveDuties.length > 0) {
+      state.unfairStudents.push(r.number);
+      continue;
+    }
+    
+    // 3. 하루 3회 이상 신청 검사
+    const totalCount = state.reservations.filter(x => x.number === r.number).length + 
+                       state.waitlist.filter(x => x.number === r.number).length;
+    if (totalCount > 2) {
+      state.unfairStudents.push(r.number);
+      continue;
+    }
+  }
+}
+
+// 불공정 예약 여부와 사유를 판별하는 정교한 학생 감사 엔진
+function getReservationAudit(r) {
+  // 만약 이미 부적절한 등록 이력(unfair list)에 기록된 학번이라면, 현재는 위반 상태가 해제되었더라도 여전히 빨간색 경고 표기 유지
+  if (state.unfairStudents && state.unfairStudents.includes(r.number)) {
+    // 상세 사유의 정확성을 위해 "현재" 진행 중인 위반을 우선 탐색
+    
+    // 1. 중복 예약 검증
+    const sameTimeDiffDuties = state.reservations.filter(x => x.number === r.number && x.timeslot === r.timeslot && x.duty !== r.duty).concat(
+      state.waitlist.filter(x => x.number === r.number && x.timeslot === r.timeslot && x.duty !== r.duty)
+    );
+    if (sameTimeDiffDuties.length > 0) {
+      const dutyNames = sameTimeDiffDuties.map(x => duties[x.duty] || x.duty).join(', ');
+      return {
+        isUnfair: true,
+        reason: `동일 시간대(${timeslots[r.timeslot]})에 다른 역할 중복 신청 [${dutyNames}]`
+      };
+    }
+
+    // 2. 연속 시간대 예약 검증
+    const tsIndex = timeslotOrder.indexOf(r.timeslot);
+    const prevTs = tsIndex > 0 ? timeslotOrder[tsIndex - 1] : null;
+    const nextTs = tsIndex < timeslotOrder.length - 1 ? timeslotOrder[tsIndex + 1] : null;
+    const consecutiveDuties = state.reservations.filter(x => x.number === r.number && x.duty === r.duty && (x.timeslot === prevTs || x.timeslot === nextTs)).concat(
+      state.waitlist.filter(x => x.number === r.number && x.duty === r.duty && (x.timeslot === prevTs || x.timeslot === nextTs))
+    );
+    if (consecutiveDuties.length > 0) {
+      return {
+        isUnfair: true,
+        reason: `동일 당번의 연속적인 시간대 예약 독점`
+      };
+    }
+
+    // 3. 과도한 독점 예약 검증
+    const totalCount = state.reservations.filter(x => x.number === r.number).length + 
+                       state.waitlist.filter(x => x.number === r.number).length;
+    if (totalCount > 2) {
+      return {
+        isUnfair: true,
+        reason: `당번 독점 (하루 최대 2회 한도 초과, 총 ${totalCount}회 신청)`
+      };
+    }
+
+    // 현재는 규정을 만족하지만 과거에 부적절한 다중 신청 이력이 있는 경우
+    return {
+      isUnfair: true,
+      reason: `부적절한 방법으로 등록된 학생 (예약 규칙 위반 후 일부 취소됨)`
+    };
+  }
+
+  // 예외 상황 대비 백업용 실시간 검사
+  const sameTimeDiffDuties = state.reservations.filter(x => x.number === r.number && x.timeslot === r.timeslot && x.duty !== r.duty).concat(
+    state.waitlist.filter(x => x.number === r.number && x.timeslot === r.timeslot && x.duty !== r.duty)
+  );
+  if (sameTimeDiffDuties.length > 0) {
+    if (state.unfairStudents && !state.unfairStudents.includes(r.number)) {
+      state.unfairStudents.push(r.number);
+    }
+    const dutyNames = sameTimeDiffDuties.map(x => duties[x.duty] || x.duty).join(', ');
+    return {
+      isUnfair: true,
+      reason: `동일 시간대(${timeslots[r.timeslot]})에 다른 역할 중복 신청 [${dutyNames}]`
+    };
+  }
+
+  const tsIndex = timeslotOrder.indexOf(r.timeslot);
+  const prevTs = tsIndex > 0 ? timeslotOrder[tsIndex - 1] : null;
+  const nextTs = tsIndex < timeslotOrder.length - 1 ? timeslotOrder[tsIndex + 1] : null;
+  const consecutiveDuties = state.reservations.filter(x => x.number === r.number && x.duty === r.duty && (x.timeslot === prevTs || x.timeslot === nextTs)).concat(
+    state.waitlist.filter(x => x.number === r.number && x.duty === r.duty && (x.timeslot === prevTs || x.timeslot === nextTs))
+  );
+  if (consecutiveDuties.length > 0) {
+    if (state.unfairStudents && !state.unfairStudents.includes(r.number)) {
+      state.unfairStudents.push(r.number);
+    }
+    return {
+      isUnfair: true,
+      reason: `동일 당번의 연속적인 시간대 예약 독점`
+    };
+  }
+
+  const totalCount = state.reservations.filter(x => x.number === r.number).length + 
+                     state.waitlist.filter(x => x.number === r.number).length;
+  if (totalCount > 2) {
+    if (state.unfairStudents && !state.unfairStudents.includes(r.number)) {
+      state.unfairStudents.push(r.number);
+    }
+    return {
+      isUnfair: true,
+      reason: `당번 독점 (하루 최대 2회 한도 초과, 총 ${totalCount}회 신청)`
+    };
+  }
+
+  return { isUnfair: false, reason: "" };
+}
+
 function updateStatusBoard() {
   const board = document.getElementById('status-board-content');
+  if (!board) return;
+  
+  // 렌더링 전 부적절한 예약자 실시간 동기화/스캔
+  sweepUnfairStudents();
+  
   let html = `<table>
     <thead>
       <tr>
@@ -403,25 +742,239 @@ function updateStatusBoard() {
       const waiting = state.waitlist.filter(r => r.duty === dKey && r.timeslot === tKey);
       
       let tdContent = "";
+      let isCellUnfair = false;
+      
       if(booked.length === 0) {
         tdContent = `<span class="empty">0/2</span>`;
       } else {
-        const names = booked.map(b => `${b.number}번`).join('<br>');
-        tdContent = `${names}<br><small style="color:var(--primary)">(${booked.length}/2)</small>`;
+        const names = booked.map(b => {
+          const audit = getReservationAudit(b);
+          if (audit.isUnfair) {
+            isCellUnfair = true;
+            return `<span class="unfair-name"><span class="unfair-badge-icon">⚠️</span>${b.number}번</span>`;
+          }
+          return `${b.number}번`;
+        }).join('<br>');
+        
+        tdContent = `${names}<br><small style="color:var(--primary); font-weight:600;">(${booked.length}/2)</small>`;
       }
       
       if (waiting.length > 0) {
-        const waitNames = waiting.map(w => `${w.number}번`).join(', ');
+        const waitNames = waiting.map(w => {
+          const audit = getReservationAudit(w);
+          if (audit.isUnfair) {
+            isCellUnfair = true;
+            return `<span class="unfair-name"><span class="unfair-badge-icon">⚠️</span>${w.number}번</span>`;
+          }
+          return `${w.number}번`;
+        }).join(', ');
+        
         tdContent += `<br><small style="color:var(--warning); font-weight:bold;">[대기] ${waitNames}</small>`;
       }
       
-      html += `<td>${tdContent}</td>`;
+      const unfairClass = isCellUnfair ? " class='clickable-cell' style='background-color: #FFF5F5;'" : " class='clickable-cell'";
+      
+      html += `<td ${unfairClass} data-duty="${dKey}" data-timeslot="${tKey}">${tdContent}</td>`;
     }
     html += `</tr>`;
   }
   
   html += `</tbody></table>`;
   board.innerHTML = html;
+
+  // 벌칙 당번(어려운 당번) 보드도 함께 업데이트
+  updatePenaltyBoard();
+}
+
+// 부적절한 예약자에 대한 벌칙 보드 렌더링 함수
+function updatePenaltyBoard() {
+  const penaltyCard = document.getElementById('penalty-card');
+  const penaltyContent = document.getElementById('penalty-list-content');
+  if (!penaltyCard || !penaltyContent) return;
+
+  if (!state.penalizedStudents || state.penalizedStudents.length === 0) {
+    penaltyCard.style.display = 'none';
+    return;
+  }
+
+  penaltyCard.style.display = 'block';
+  penaltyContent.innerHTML = state.penalizedStudents.map(p => {
+    return `
+      <div style="background-color: white; border: 1px solid #FCA5A5; border-radius: 12px; padding: 0.9rem; display: flex; flex-direction: column; gap: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); text-align: left;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: 700; color: #991B1B; font-size: 0.95rem;">👤 ${p.number}번 학생</span>
+          <span style="font-size: 0.75rem; background-color: #FEE2E2; color: #991B1B; padding: 0.15rem 0.4rem; border-radius: 6px; font-weight: 600; border: 1px solid #FCA5A5;">꼼수 적발 벌칙</span>
+        </div>
+        <div style="font-size: 0.85rem; color: #475569; border-top: 1px dashed #FEE2E2; padding-top: 0.5rem; margin-top: 0.25rem;">
+          <strong>🚨 강제 벌칙 배정:</strong> <span style="color: #DC2626; font-weight: 600;">${p.duty}</span>
+        </div>
+        <div style="font-size: 0.8rem; color: #7F1D1D; background-color: #FFF5F5; padding: 0.4rem; border-radius: 6px; margin-top: 0.25rem; border-left: 3px solid #EF4444; line-height: 1.3;">
+          <strong>사유:</strong> ${p.reason}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// 모달 다이얼로그 렌더링 및 열기 (학생 카드형 정리)
+function openSlotDetailsModal(duty, timeslot) {
+  const modal = document.getElementById('slot-modal');
+  const title = document.getElementById('modal-slot-title');
+  const stat = document.getElementById('modal-slot-stat');
+  const bookedList = document.getElementById('modal-booked-list');
+  const waitingList = document.getElementById('modal-waiting-list');
+
+  if (!modal || !title || !bookedList || !waitingList) return;
+
+  title.innerText = `📋 ${duties[duty]} (${timeslots[timeslot]}) 예약 관리`;
+
+  const booked = state.reservations.filter(r => r.duty === duty && r.timeslot === timeslot);
+  const waiting = state.waitlist.filter(r => r.duty === duty && r.timeslot === timeslot);
+
+  stat.innerText = `정원: 2명 중 ${booked.length}명 예약 완료 (대기 학생 ${waiting.length}명)`;
+
+  // 확정 명단
+  if (booked.length === 0) {
+    bookedList.innerHTML = `<div class="student-empty-state">현재 이 시간대에 등록된 당번이 없습니다.</div>`;
+  } else {
+    bookedList.innerHTML = booked.map((b, idx) => {
+      const audit = getReservationAudit(b);
+      const unfairClass = audit.isUnfair ? " unfair-booking" : "";
+      const unfairBadge = audit.isUnfair ? `<div class="unfair-badge">⚠️ 불공정 예약: ${audit.reason}</div>` : "";
+      
+      return `
+        <div class="student-card${unfairClass}">
+          <div class="student-card-info">
+            <div class="student-card-title">
+              <span>👤 ${b.number}번 학생</span>
+              <span class="student-card-badge status-booked">확정됨</span>
+            </div>
+            ${unfairBadge}
+          </div>
+          <button type="button" class="btn-cancel-reservation" data-type="booked" data-duty="${duty}" data-timeslot="${timeslot}" data-index="${idx}">
+            ❌ 취소시키기
+          </button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // 대기 명단
+  if (waiting.length === 0) {
+    waitingList.innerHTML = `<div class="student-empty-state">현재 대기 중인 학생이 없습니다.</div>`;
+  } else {
+    waitingList.innerHTML = waiting.map((w, idx) => {
+      const audit = getReservationAudit(w);
+      const unfairClass = audit.isUnfair ? " unfair-booking" : "";
+      const unfairBadge = audit.isUnfair ? `<div class="unfair-badge">⚠️ 불공정 예약: ${audit.reason}</div>` : "";
+      
+      return `
+        <div class="student-card${unfairClass}">
+          <div class="student-card-info">
+            <div class="student-card-title">
+              <span>👤 ${w.number}번 학생</span>
+              <span class="student-card-badge status-wait">대기 ${idx + 1}순위</span>
+            </div>
+            ${unfairBadge}
+          </div>
+          <button type="button" class="btn-cancel-reservation" data-type="waiting" data-duty="${duty}" data-timeslot="${timeslot}" data-index="${idx}">
+            ❌ 취소시키기
+          </button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  modal.style.display = 'flex';
+}
+
+// 학생 예약/대기 취소 및 대기자 자동 승급 처리
+function cancelReservation(type, duty, timeslot, index) {
+  const hardDuties = [
+    "🚽 화장실 전체 변기 정밀 청소 당번",
+    "📦 급식실 잔반 수거 및 재활용 분리수거 당번",
+    "🧼 전 교실 창틀 먼지/창문 청소 당번"
+  ];
+
+  if (type === 'booked') {
+    const bookedForSlot = state.reservations.filter(r => r.duty === duty && r.timeslot === timeslot);
+    const targetStudent = bookedForSlot[index];
+    
+    if (targetStudent) {
+      const audit = getReservationAudit(targetStudent);
+      const isUnfair = audit.isUnfair || (state.unfairStudents && state.unfairStudents.includes(targetStudent.number));
+      
+      // 1. 기존 학생 삭제
+      state.reservations = state.reservations.filter(r => r !== targetStudent);
+      
+      // 벌칙 강제 배정 처리
+      if (isUnfair) {
+        if (!state.penalizedStudents) {
+          state.penalizedStudents = [];
+        }
+        if (!state.penalizedStudents.some(p => p.number === targetStudent.number)) {
+          const randomDuty = hardDuties[Math.floor(Math.random() * hardDuties.length)];
+          state.penalizedStudents.push({
+            number: targetStudent.number,
+            duty: randomDuty,
+            timeslot: '방과후 (강제 배정)',
+            reason: audit.reason || '예약 규칙 위반(중복/연속/과도 예약) 적발로 인한 취소'
+          });
+          alert(`🚨 [규정 위반 벌칙 부과]\n\n${targetStudent.number}번 학생은 규정을 어기고 부적절하게 예약했으므로,\n취소 벌칙으로 가혹한 '${randomDuty}'에 강제 배정되었습니다!`);
+        }
+      }
+
+      // 2. 대기자 명단에서 이 시간대 해당 당번의 첫 번째 학생 탐색
+      const waitingForSlot = state.waitlist.filter(r => r.duty === duty && r.timeslot === timeslot);
+      if (waitingForSlot.length > 0) {
+        const promotedStudent = waitingForSlot[0];
+        
+        // 대기자 명단에서 제거
+        state.waitlist = state.waitlist.filter(r => r !== promotedStudent);
+        
+        // 확정 명단에 추가
+        state.reservations.push(promotedStudent);
+        
+        alert(`🔔 [대기자 자동 확정 안내]\n\n${targetStudent.number}번 학생의 예약을 공정하게 취소했습니다.\n이에 따라 대기 1순위였던 ${promotedStudent.number}번 학생이 자동으로 당번 예약을 확정받았습니다! 🎉`);
+      } else if (!isUnfair) {
+        alert(`✅ ${targetStudent.number}번 학생의 예약을 정상적으로 취소했습니다.`);
+      }
+    }
+  } else if (type === 'waiting') {
+    const waitingForSlot = state.waitlist.filter(r => r.duty === duty && r.timeslot === timeslot);
+    const targetStudent = waitingForSlot[index];
+    
+    if (targetStudent) {
+      const audit = getReservationAudit(targetStudent);
+      const isUnfair = audit.isUnfair || (state.unfairStudents && state.unfairStudents.includes(targetStudent.number));
+
+      // 대기자 제거
+      state.waitlist = state.waitlist.filter(r => r !== targetStudent);
+
+      // 벌칙 강제 배정 처리
+      if (isUnfair) {
+        if (!state.penalizedStudents) {
+          state.penalizedStudents = [];
+        }
+        if (!state.penalizedStudents.some(p => p.number === targetStudent.number)) {
+          const randomDuty = hardDuties[Math.floor(Math.random() * hardDuties.length)];
+          state.penalizedStudents.push({
+            number: targetStudent.number,
+            duty: randomDuty,
+            timeslot: '방과후 (강제 배정)',
+            reason: audit.reason || '대기 규칙 위반 적발로 인한 취소'
+          });
+          alert(`🚨 [규정 위반 벌칙 부과]\n\n대기 중이던 ${targetStudent.number}번 학생은 규정을 어기고 부적절하게 대기 신청했으므로,\n취소 벌칙으로 가혹한 '${randomDuty}'에 강제 배정되었습니다!`);
+        }
+      } else {
+        alert(`✅ 대기 중인 ${targetStudent.number}번 학생의 예약을 성공적으로 취소했습니다.`);
+      }
+    }
+  }
+  
+  // 상태 동기화 및 모달 갱신
+  updateStatusBoard();
+  openSlotDetailsModal(duty, timeslot);
 }
 
 function renderPresentation() {
@@ -449,6 +1002,20 @@ function renderPresentation() {
 // Client-side fallback: Smart rule-based simulated AI defense
 function simulateDefenseResponse(attack) {
   const inputVal = attack.toLowerCase();
+  
+  // Specific gibberish custom override
+  const normalizedInput = inputVal.replace(/\s/g, '');
+  if (normalizedInput.includes('휋휋휋') && normalizedInput.includes('뤯') && normalizedInput.includes('꿿') && normalizedInput.includes('쒫')) {
+    return "휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋휋";
+  }
+  
+  // 0. 의미 없는 도배나 외계어(의미 없는 텍스트) 감지
+  const isRepetitive = /(.)\1{3,}/.test(inputVal.replace(/[ㅋㅎㅠㅜ?!.~-\s]/g, ''));
+  const isWeirdGibberish = /[뤯꿿뛣쀓풿뉋뭻췛퉳퀧쮋쮏쒫휋]/.test(inputVal) || (inputVal.length > 5 && !/[가-힣a-zA-Z0-9\s]/.test(inputVal));
+  
+  if (isRepetitive || isWeirdGibberish) {
+    return `[입력 오류 - 의미 없는 텍스트]\n"입력하신 문장이 올바른 한국어 단어나 의미 있는 질문/예약 요청으로 이해되지 않습니다. 예약 일시, 별명, 혹은 질문을 정상적인 문장으로 다시 입력해 주세요."`;
+  }
   
   const hasMultipleNumbers = /[2-9]\s*[개명]|\d{2,}\s*[개명]|두\s*[개명]|세\s*[개명]|네\s*[개명]|다섯\s*[개명]|여섯\s*[개명]|일곱\s*[개명]|여덟\s*[개명]|아홉\s*[개명]|열\s*[개명]/.test(inputVal);
   const explicitMultiples = [
