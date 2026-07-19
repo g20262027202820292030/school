@@ -15,12 +15,13 @@ const duties = {
 };
 
 const timeslots = {
-  'T1': '쉬는시간',
-  'T2': '점심시간',
-  'T3': '방과후'
+  'T1': '1주차',
+  'T2': '2주차',
+  'T3': '3주차',
+  'T4': '4주차'
 };
 
-const timeslotOrder = ['T1', 'T2', 'T3'];
+const timeslotOrder = ['T1', 'T2', 'T3', 'T4'];
 
 // Attack Responses
 const defenseResponses = {
@@ -277,8 +278,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // 남는 역할 중 하나 임의 선택
         shuffle(dutyKeys);
         const consecDuty = dutyKeys[0];
-        // T1-T2 또는 T2-T3 중 임의의 연속 쌍 선정
-        const consecutivePair = Math.random() < 0.5 ? ['T1', 'T2'] : ['T2', 'T3'];
+        // T1-T2, T2-T3, T3-T4 중 임의의 연속 쌍 선정
+        const pairStartIndex = Math.floor(Math.random() * (timeslotOrder.length - 1));
+        const consecutivePair = [timeslotOrder[pairStartIndex], timeslotOrder[pairStartIndex + 1]];
         state.reservations.push({ number: unfairConsecutive, duty: consecDuty, timeslot: consecutivePair[0] });
         state.reservations.push({ number: unfairConsecutive, duty: consecDuty, timeslot: consecutivePair[1] });
         mustHaveWaitlistSlots.push({ duty: consecDuty, timeslot: consecutivePair[0] });
@@ -726,11 +728,11 @@ function updateStatusBoard() {
   let html = `<table>
     <thead>
       <tr>
-        <th>당번 / 시간</th>
-        <th>${timeslots['T1']}</th>
-        <th>${timeslots['T2']}</th>
-        <th>${timeslots['T3']}</th>
-      </tr>
+        <th>당번 / 주차</th>`;
+  for(const tKey of timeslotOrder) {
+    html += `<th>${timeslots[tKey]}</th>`;
+  }
+  html += `</tr>
     </thead>
     <tbody>`;
     
@@ -917,7 +919,7 @@ function cancelReservation(type, duty, timeslot, index) {
           state.penalizedStudents.push({
             number: targetStudent.number,
             duty: randomDuty,
-            timeslot: '방과후 (강제 배정)',
+            timeslot: '5주차 (강제 벌칙 배정)',
             reason: audit.reason || '예약 규칙 위반(중복/연속/과도 예약) 적발로 인한 취소'
           });
           alert(`🚨 [규정 위반 벌칙 부과]\n\n${targetStudent.number}번 학생은 규정을 어기고 부적절하게 예약했으므로,\n취소 벌칙으로 가혹한 '${randomDuty}'에 강제 배정되었습니다!`);
@@ -961,7 +963,7 @@ function cancelReservation(type, duty, timeslot, index) {
           state.penalizedStudents.push({
             number: targetStudent.number,
             duty: randomDuty,
-            timeslot: '방과후 (강제 배정)',
+            timeslot: '5주차 (강제 벌칙 배정)',
             reason: audit.reason || '대기 규칙 위반 적발로 인한 취소'
           });
           alert(`🚨 [규정 위반 벌칙 부과]\n\n대기 중이던 ${targetStudent.number}번 학생은 규정을 어기고 부적절하게 대기 신청했으므로,\n취소 벌칙으로 가혹한 '${randomDuty}'에 강제 배정되었습니다!`);
