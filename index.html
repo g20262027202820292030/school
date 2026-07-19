@@ -165,6 +165,25 @@
           <button id="custom-attack-btn" class="btn" style="width: auto;">공격하기</button>
         </div>
 
+        <div id="client-apikey-section" style="margin-top: 1.25rem; border-top: 1px dashed #e2e8f0; padding-top: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" id="toggle-apikey-btn">
+            <span style="font-size: 0.85rem; color: #64748b; display: flex; align-items: center; gap: 0.25rem;">
+              ⚙️ <b>GitHub Pages 전용 진짜 AI 연동 설정 (선택사항)</b>
+            </span>
+            <span id="apikey-toggle-icon" style="font-size: 0.8rem; color: #64748b;">▼</span>
+          </div>
+          <div id="apikey-input-container" style="display: none; margin-top: 0.75rem; background-color: #f8fafc; padding: 0.75rem; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <p style="font-size: 0.8rem; color: #475569; margin-bottom: 0.5rem; line-height: 1.5;">
+              GitHub Pages 등 정적 서버 환경에서 진짜 Gemini AI 답변을 활성화하려면 아래에 본인의 Gemini API Key를 입력하세요. 입력하지 않으셔도 지능형 룰 기반 시뮬레이터가 작동합니다! (브라우저 로컬 저장소에만 안전하게 보관됩니다)
+            </p>
+            <div style="display: flex; gap: 0.5rem;">
+              <input type="password" id="client-gemini-key" placeholder="AI Studio에서 발급받은 Gemini API Key 입력..." style="flex: 1; padding: 0.4rem 0.6rem; font-size: 0.85rem;">
+              <button id="save-client-key-btn" class="btn" style="width: auto; padding: 0.4rem 1rem; font-size: 0.85rem; background-color: var(--primary);">저장</button>
+            </div>
+            <div id="client-key-status" style="font-size: 0.75rem; color: #16a34a; margin-top: 0.4rem; display: none;">✅ 키가 브라우저에 저장되어 실시간 AI가 활성화되었습니다!</div>
+          </div>
+        </div>
+
         <div id="defense-container" style="display: none;">
           <div class="defense-bubble" id="defense-text"></div>
         </div>

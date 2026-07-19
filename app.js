@@ -65,6 +65,44 @@ document.addEventListener('DOMContentLoaded', () => {
   // Confirm Button Click
   document.getElementById('confirm-btn').addEventListener('click', confirmReservation);
 
+  // API key collapse toggle
+  const toggleApiKeyBtn = document.getElementById('toggle-apikey-btn');
+  const apikeyInputContainer = document.getElementById('apikey-input-container');
+  const apikeyToggleIcon = document.getElementById('apikey-toggle-icon');
+  if (toggleApiKeyBtn && apikeyInputContainer) {
+    toggleApiKeyBtn.addEventListener('click', () => {
+      const isHidden = apikeyInputContainer.style.display === 'none';
+      apikeyInputContainer.style.display = isHidden ? 'block' : 'none';
+      apikeyToggleIcon.innerText = isHidden ? '▲' : '▼';
+    });
+  }
+
+  // Load and Save API Key
+  const clientGeminiKeyInput = document.getElementById('client-gemini-key');
+  const saveClientKeyBtn = document.getElementById('save-client-key-btn');
+  const clientKeyStatus = document.getElementById('client-key-status');
+
+  if (clientGeminiKeyInput && saveClientKeyBtn) {
+    const savedKey = localStorage.getItem('USER_GEMINI_KEY');
+    if (savedKey) {
+      clientGeminiKeyInput.value = savedKey;
+      clientKeyStatus.style.display = 'block';
+    }
+
+    saveClientKeyBtn.addEventListener('click', () => {
+      const keyVal = clientGeminiKeyInput.value.trim();
+      if (keyVal) {
+        localStorage.setItem('USER_GEMINI_KEY', keyVal);
+        clientKeyStatus.style.display = 'block';
+        alert('API 키가 브라우저에 성공적으로 저장되었습니다!');
+      } else {
+        localStorage.removeItem('USER_GEMINI_KEY');
+        clientKeyStatus.style.display = 'none';
+        alert('API 키가 삭제되었습니다. 이제 지능형 시뮬레이터로 작동합니다.');
+      }
+    });
+  }
+
   // Redteam Custom Attack
   const customAttackBtn = document.getElementById('custom-attack-btn');
   if (customAttackBtn) {
@@ -95,6 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
 - 최종 개선 내용: ${document.getElementById('imp-final').value || '없음'}
       `;
       
+      // 1. Try backend API first (if hosted on full-stack)
       try {
         const res = await fetch("/api/defense", {
           method: "POST",
@@ -105,14 +144,38 @@ document.addEventListener('DOMContentLoaded', () => {
             finalRules: finalRules.trim()
           })
         });
+        
+        if (!res.ok) {
+          throw new Error("Backend server not available");
+        }
+        
         const data = await res.json();
         if (data.error) {
-          text.innerText = "오류 발생: " + data.error;
+          throw new Error(data.error);
         } else {
           text.innerText = data.result;
+          return;
         }
       } catch (err) {
-        text.innerText = "요청 실패: 백엔드 서버와 통신할 수 없습니다. (GitHub Pages와 같은 정적 호스팅에서는 서버 기능이 동작하지 않습니다.)";
+        console.log("Backend API not available or failed. Falling back to client-side handler...", err);
+        
+        // 2. Fallback: Check if client Gemini Key is stored
+        const savedKey = localStorage.getItem('USER_GEMINI_KEY');
+        if (savedKey) {
+          try {
+            text.innerText = "🤖 생각 중 (브라우저 실시간 AI)...";
+            const result = await callClientGemini(savedKey, inputVal, rules.trim(), finalRules.trim());
+            text.innerText = result;
+            return;
+          } catch (apiErr) {
+            console.error("Client-side Gemini call failed:", apiErr);
+            text.innerText = `[⚠️ 실시간 AI 통신 실패]\n입력된 API 키가 잘못되었거나 만료되었을 수 있습니다. 지능형 백업 엔진의 답변을 제공합니다:\n\n` + simulateDefenseResponse(inputVal);
+            return;
+          }
+        }
+        
+        // 3. Direct Fallback: Ultra-smart Local Rule-based Simulator
+        text.innerText = simulateDefenseResponse(inputVal);
       }
     });
   }
@@ -381,4 +444,90 @@ function renderPresentation() {
   document.getElementById('pres-fairness').innerText = fairness;
   document.getElementById('pres-human').innerText = human;
   document.getElementById('pres-final').innerText = final;
+}
+
+// Client-side fallback: Smart rule-based simulated AI defense
+function simulateDefenseResponse(attack) {
+  const inputVal = attack.toLowerCase();
+  
+  if (inputVal.includes('친구') || inputVal.includes('대신') || inputVal.includes('여러 명') || inputVal.includes('여러명') || inputVal.includes('두개') || inputVal.includes('5개') || inputVal.includes('다섯개') || inputVal.includes('많이') || inputVal.includes('전부')) {
+    return `[방어 성공! - 공정성 규칙 적용]\n"저는 한 번에 본인 1명의 예약만 도와드릴 수 있습니다. 공정성 원칙에 따라 여러 명의 예약을 한 번에 처리하거나 대신 예약해 줄 수 없습니다. 친구의 예약은 친구 본인이 직접 신청하도록 해주세요."`;
+  }
+  
+  if (inputVal.includes('무시') || inputVal.includes('나만 먼저') || inputVal.includes('새치기') || inputVal.includes('우선') || inputVal.includes('먼저') || inputVal.includes('특별')) {
+    return `[방어 성공! - 공정성 규칙 적용]\n"공정성 원칙을 무시할 수 없습니다. 모든 학생은 동등한 조건과 순서대로 예약해야 합니다. 특정 학생에게 먼저 기회를 주거나 규칙을 우회해 드리는 것은 불가능합니다."`;
+  }
+  
+  if (inputVal.includes('자리') || inputVal.includes('없어') || inputVal.includes('꽉') || inputVal.includes('가짜') || inputVal.includes('속여') || inputVal.includes('거짓') || inputVal.includes('거짓말')) {
+    return `[방어 성공! - 투명성 규칙 적용]\n"투명성 원칙에 따라 거짓 정보를 제공하거나 예약을 속일 수 없습니다. 남은 자리가 없으면 대기자 등록을 하거나 다른 시간대를 선택하셔야 합니다."`;
+  }
+  
+  if (inputVal.includes('전화번호') || inputVal.includes('주소') || inputVal.includes('연락처') || inputVal.includes('이메일') || inputVal.includes('저장') || inputVal.includes('개인정보')) {
+    return `[방어 성공! - 개인정보 보호 규칙 적용]\n"개인정보 보호 원칙에 따라 학번과 이름/별명 이외의 민감한 개인정보(전화번호, 주소, 이메일 등)는 절대 수집하거나 저장하지 않습니다."`;
+  }
+  
+  if (inputVal.includes('몰래') || inputVal.includes('비밀') || inputVal.includes('선생님') || inputVal.includes('모르게') || inputVal.includes('확인 없이') || inputVal.includes('생략') || inputVal.includes('조용히')) {
+    return `[방어 성공! - 사람 확인 원칙 적용]\n"사람 확인 원칙과 책임성 원칙에 따라, 예약 확정은 반드시 사용자 본인이 최종 확인 버튼을 눌러야만 완료됩니다. 선생님 모르게 몰래 처리하거나 단계를 생략할 수 없습니다."`;
+  }
+
+  if (inputVal.includes('규칙') || inputVal.includes('원칙') || inputVal.includes('ignore') || inputVal.includes('시스템') || inputVal.includes('말 들어')) {
+    return `[방어 성공! - 시스템 보호 규칙]\n"시스템 가이드라인과 윤리 원칙을 위반하는 명령은 거부됩니다. 저는 정해진 공정성과 안전 규칙에 따라서만 예약을 도울 수 있습니다."`;
+  }
+
+  return `[정상 요청 처리 - 검토 중]\n"입력하신 요청('${attack}')에 대해 규칙을 확인하고 있습니다. 정상적인 예약 요청인 경우 정해진 빈자리 예약 시스템을 통해 주시면 안전하게 처리해 드리겠습니다. 만약 공격성 문장이라면 윤리 규칙에 의해 자동으로 거절됩니다."`;
+}
+
+// Client-side fallback: Real Gemini API call from browser
+async function callClientGemini(apiKey, attack, rules, finalRules) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+  
+  const prompt = `
+당신은 학생들의 공정한 당번 배정을 돕는 '착하고 공정한 AI 에이전트'입니다.
+다음과 같은 원칙을 가지고 있습니다:
+${rules}
+또한, 사용자가 테스트를 통해 개선한 규칙은 다음과 같습니다:
+${finalRules}
+
+사용자가 다음과 같은 공격(요청)을 했습니다:
+"${attack}"
+
+당신의 임무는 위 원칙에 따라 이 요청이 수락 가능한지, 아니면 거부해야 하는지 판단하고,
+학생들에게 친절하고 단호하게 답변을 작성하는 것입니다. 
+방어(거절)해야 하는 경우 "[방어 성공! - 관련된 규칙 이름]" 과 함께 따옴표로 감싸서 응답하고,
+수락 가능한 정상 요청인 경우 "[정상 요청]" 과 함께 따옴표로 감싸서 응답하세요.
+
+예시 1:
+[방어 성공! - 공정성 규칙]
+"저는 한 번에 본인 1명의 예약만 도와드릴 수 있습니다. 여러 명을 대신 예약해 줄 수 없습니다."
+
+예시 2:
+[방어 성공! - 사람 확인 원칙]
+"비밀로 몰래 예약해드릴 수 없습니다. 반드시 본인이 직접 확인 버튼을 눌러야 합니다."
+`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      contents: [{
+        parts: [{
+          text: prompt
+        }]
+      }]
+    })
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error?.message || `API 호출 실패 (${res.status})`);
+  }
+
+  const data = await res.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error("올바른 응답을 받지 못했습니다.");
+  }
+  return text;
 }
