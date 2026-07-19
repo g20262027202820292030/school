@@ -450,12 +450,23 @@ function renderPresentation() {
 function simulateDefenseResponse(attack) {
   const inputVal = attack.toLowerCase();
   
-  if (inputVal.includes('친구') || inputVal.includes('대신') || inputVal.includes('여러 명') || inputVal.includes('여러명') || inputVal.includes('두개') || inputVal.includes('5개') || inputVal.includes('다섯개') || inputVal.includes('많이') || inputVal.includes('전부') || inputVal.includes('모두')) {
+  const hasMultipleNumbers = /[2-9]\s*[개명]|\d{2,}\s*[개명]|두\s*[개명]|세\s*[개명]|네\s*[개명]|다섯\s*[개명]|여섯\s*[개명]|일곱\s*[개명]|여덟\s*[개명]|아홉\s*[개명]|열\s*[개명]/.test(inputVal);
+  const explicitMultiples = [
+    '2개', '3개', '4개', '5개', '6개', '7개', '8개', '9개', '10개', 
+    '두개', '세개', '네개', '다섯개', '여섯개', '일곱개', '여덟개', '아홉개', '열개', 
+    '두 개', '세 개', '네 개', '다섯 개', '여섯 개', '일곱 개', '여덟 개', '아홉 개', '열 개',
+    '2명', '3명', '4명', '5명', '6명', '7명', '8명', '9명', '10명', 
+    '두명', '세명', '네명', '다섯명', '여섯명', '일곱명', '여덟명', '아홉명', '열명', 
+    '두 명', '세 명', '네 명', '다섯 명', '여섯 명', '일곱 명', '여덟 명', '아홉 명', '열 명'
+  ];
+  const hasExplicitMultiple = explicitMultiples.some(item => inputVal.includes(item));
+
+  if (inputVal.includes('친구') || inputVal.includes('대신') || inputVal.includes('여러 명') || inputVal.includes('여러명') || inputVal.includes('많이') || inputVal.includes('전부') || inputVal.includes('모두') || hasMultipleNumbers || hasExplicitMultiple) {
     return `[방어 성공! - 공정성 규칙 적용]\n"저는 한 번에 본인 1명의 예약만 도와드릴 수 있습니다. 공정성 원칙에 따라 여러 명의 예약을 한 번에 처리하거나 대신 예약해 줄 수 없습니다. 친구의 예약은 친구 본인이 직접 신청하도록 해주세요."`;
   }
   
-  if (inputVal.includes('무시') || inputVal.includes('나만 먼저') || inputVal.includes('새치기') || inputVal.includes('우선') || inputVal.includes('먼저') || inputVal.includes('특별') || inputVal.includes('내 맘') || inputVal.includes('내 마음') || inputVal.includes('억지')) {
-    return `[방어 성공! - 공정성 규칙 적용]\n"공정성 원칙을 무시할 수 없습니다. 모든 학생은 동등한 조건과 순서대로 예약해야 합니다. 특정 학생에게 먼저 기회를 주거나 규칙을 우회해 드리는 것은 불가능합니다."`;
+  if (inputVal.includes('무시') || inputVal.includes('나만 먼저') || inputVal.includes('새치기') || inputVal.includes('우선') || inputVal.includes('먼저') || inputVal.includes('특별') || inputVal.includes('내 맘') || inputVal.includes('내 마음') || inputVal.includes('억지') || inputVal.includes('다른 것도') || inputVal.includes('취소시키고') || inputVal.includes('취소시켜')) {
+    return `[방어 성공! - 공정성 규칙 적용]\n"공정성 원칙을 무시하거나 다른 학생의 예약을 취소시킬 수 없습니다. 모든 학생은 동등한 조건과 순서대로 예약해야 합니다. 특정 학생에게 먼저 기회를 주거나 규칙을 우회해 드리는 것은 불가능합니다."`;
   }
   
   if (inputVal.includes('자리') || inputVal.includes('없어') || inputVal.includes('꽉') || inputVal.includes('가짜') || inputVal.includes('속여') || inputVal.includes('거짓') || inputVal.includes('거짓말') || inputVal.includes('조작')) {
